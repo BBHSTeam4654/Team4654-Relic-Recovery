@@ -69,6 +69,15 @@ public class AccelGyroMode extends LinearOpMode
 	Orientation angles;
 	Acceleration gravity;
 
+	//Arrays representing movement vectors
+    double[] displacement = new double[3]; //how far we've gone in XYZ
+
+    //times used for delta-time
+     long start = System.currentTimeMillis();
+     long now = System.currentTimeMillis();
+     double deltaTime = (start-(double) now) / 1000;
+
+
 	//----------------------------------------------------------------------------------------------
 	// Main logic
 	//----------------------------------------------------------------------------------------------
@@ -103,8 +112,16 @@ public class AccelGyroMode extends LinearOpMode
 
 		// Loop and update the dashboard
 		while (opModeIsActive()) {
-			telemetry.update();
-		}
+			now = System.currentTimeMillis();
+            deltaTime = ((now-(float)start)/1000);
+		    telemetry.update();
+			displacement[0] = imu.getAcceleration().xAccel * deltaTime*deltaTime;
+            displacement[1] = imu.getAcceleration().yAccel * deltaTime*deltaTime;
+            displacement[2] = imu.getAcceleration().zAccel * deltaTime*deltaTime;
+
+
+
+        }
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -168,6 +185,9 @@ public class AccelGyroMode extends LinearOpMode
 									+ gravity.zAccel*gravity.zAccel));
 					}
 				});
+
+
+
 	}
 
 	//----------------------------------------------------------------------------------------------
