@@ -324,8 +324,9 @@ public class JellyfishFollower extends LinearOpMode {
 				VectorF pos = lastLocation.getTranslation();
                 double[] powers = powersToMove(pos.get(0), pos.get(1), Orientation.getOrientation(lastLocation, AxesReference.EXTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle, 1);
                 for (int i = 0; i < 4; i++) {
-                	motors[i].setPower(powers[i]);
+                	// motors[i].setPower(powers[i]);
 				}
+				telemetry.addData("Powers", String.format("%.4f, %.4f, %.4f, %.4f", powers[0], powers[1], powers[2], powers[3]));
             } else {
                 telemetry.addData("Pos", "Unknown");
             }
