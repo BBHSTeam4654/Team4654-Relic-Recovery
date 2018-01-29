@@ -219,7 +219,7 @@ public class JellyfishFollower extends LinearOpMode {
         OpenGLMatrix jellyfishLocation = OpenGLMatrix
                 /* Then we translate the target off to the RED WALL. Our translation here
                 is a negative translation in X.*/
-                .translation(0, 203.2F, 0)
+                .translation(0, 609.6F, 0)
                 .multiplied(Orientation.getRotationMatrix(
                         /* First, in the fixed (field) coordinate system, we rotate 90deg in X, then 90 in Z */
                         AxesReference.EXTRINSIC, AxesOrder.XYZ,
