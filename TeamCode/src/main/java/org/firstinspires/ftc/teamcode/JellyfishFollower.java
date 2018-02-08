@@ -29,6 +29,8 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -41,6 +43,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
+import org.firstinspires.ftc.robotcore.external.navigation.Position;
+import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackableDefaultListener;
@@ -95,7 +99,16 @@ public class JellyfishFollower extends LinearOpMode {
      */
 	private VuforiaLocalizer vuforia;
 
+    private BNO055IMU imu;
     private DcMotor[] motors = new DcMotor[4];
+
+    private enum State {
+        VUFORIA,
+        ROTATE,
+        XAXIS,
+        YAXIS,
+        STOP
+    }
 
     @Override public void runOpMode() {
         /*
@@ -108,10 +121,28 @@ public class JellyfishFollower extends LinearOpMode {
         // OR...  Do Not Activate the Camera Monitor View, to save power
         // VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
 
-		final String[] names = {"rightFront", "leftFront", "leftBack", "rightFront"};
+		final String[] names = {"leftFront", "leftBack", "rightFront", "rightBack"};
         for (int i = 0; i < motors.length; i++) {
         	motors[i] = hardwareMap.dcMotor.get(names[i]);
 		}
+
+        // Set up the parameters with which we will use our IMU. Note that integration
+        // algorithm here just reports accelerations to the logcat log; it doesn't actually
+        // provide positional information.
+        BNO055IMU.Parameters parametersIMU = new BNO055IMU.Parameters();
+        parametersIMU.angleUnit		   = BNO055IMU.AngleUnit.DEGREES;
+        parametersIMU.accelUnit		   = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
+        parametersIMU.calibrationDataFile = "BNO055IMUCalibration.json"; // see the calibration sample opmode
+        parametersIMU.loggingEnabled	  = true;
+        parametersIMU.loggingTag		  = "IMU";
+        parametersIMU.accelerationIntegrationAlgorithm = new JustLoggingAccelerationIntegrator();
+
+        // Retrieve and initialize the IMU. We expect the IMU to be attached to an I2C port
+        // on a Core Device Interface Module, configured to be a sensor of type "AdaFruit IMU",
+        // and named "imu".
+        imu = hardwareMap.get(BNO055IMU.class, "imu");
+        imu.initialize(parametersIMU);
+
 
         /*
          * IMPORTANT: You need to obtain your own license key to use Vuforia. The string below with which
@@ -146,7 +177,7 @@ public class JellyfishFollower extends LinearOpMode {
         jellyfish.setName("Jellyfish");  // Stones
 
         /* For convenience, gather together all the trackable objects in one easily-iterable collection */
-        List<VuforiaTrackable> allTrackables = new ArrayList<VuforiaTrackable>();
+        List<VuforiaTrackable> allTrackables = new ArrayList<>();
         allTrackables.add(jellyfish);
 
         /*
@@ -256,7 +287,7 @@ public class JellyfishFollower extends LinearOpMode {
          * plane) is then CCW, as one would normally expect from the usual classic 2D geometry.
          */
         OpenGLMatrix phoneLocationOnRobot = OpenGLMatrix
-                .translation(0*mmBotWidth/2,0,0)
+                .translation(0,0,0)
                 .multiplied(Orientation.getRotationMatrix(
                         AxesReference.EXTRINSIC, AxesOrder.XZY,
                         AngleUnit.DEGREES, 90, 0, 0));
@@ -297,83 +328,99 @@ public class JellyfishFollower extends LinearOpMode {
         /* Start tracking the data sets we care about. */
         testMarks.activate();
 
+        imu.startAccelerationIntegration(new Position(), new Velocity(), 100);
+        State state = State.VUFORIA;
+        VectorF pos = null;
+        Orientation rot = null;
+
         while (opModeIsActive()) {
 
-            for (VuforiaTrackable trackable : allTrackables) {
-                /*
-                 * getUpdatedRobotLocation() will return null if no new information is available since
-                 * the last time that call was made, or if the trackable is not currently visible.
-                 * getRobotLocation() will return null if the trackable is not currently visible.
-                 */
-                telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener)trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
+            switch (state) {
+                case VUFORIA:
+                    telemetry.addData("State", "VUFORIA");
+                    for (VuforiaTrackable trackable : allTrackables) {
+                        /*
+                         * getUpdatedRobotLocation() will return null if no new information is available since
+                         * the last time that call was made, or if the trackable is not currently visible.
+                         * getRobotLocation() will return null if the trackable is not currently visible.
+                         */
+                        telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener)trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
 
-                OpenGLMatrix robotLocationTransform = ((VuforiaTrackableDefaultListener)trackable.getListener()).getUpdatedRobotLocation();
-                if (robotLocationTransform != null) {
-                    lastLocation = robotLocationTransform;
-                }
-            }
-            /*
-             * Provide feedback as to where the robot was last located (if we know).
-             */
-            if (lastLocation != null) {
-                telemetry.addData("Matrix", Arrays.toString(lastLocation.getData()));
-                //  RobotLog.vv(TAG, "robot=%s", format(lastLocation));
-                telemetry.addData("Pos", format(lastLocation));
-                telemetry.addData("Translation", lastLocation.getTranslation());
+                        OpenGLMatrix robotLocationTransform = ((VuforiaTrackableDefaultListener)trackable.getListener()).getUpdatedRobotLocation();
+                        if (robotLocationTransform != null) {
+                            lastLocation = robotLocationTransform;
+                            state = State.ROTATE;
+                        }
+                    }
+                    /*
+                     * Provide feedback as to where the robot was last located (if we know).
+                     */
+                    if (lastLocation != null) {
+                        telemetry.addData("Matrix", Arrays.toString(lastLocation.getData()));
+                        //  RobotLog.vv(TAG, "robot=%s", format(lastLocation));
+                        telemetry.addData("Pos", format(lastLocation));
+                        telemetry.addData("Translation", lastLocation.getTranslation());
 
-				VectorF pos = lastLocation.getTranslation();
-                double[] powers = powersToMove(pos.get(0), pos.get(1), Orientation.getOrientation(lastLocation, AxesReference.EXTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle, 1);
-                for (int i = 0; i < 4; i++) {
-                	// motors[i].setPower(powers[i]);
-				}
-				telemetry.addData("Powers", String.format("%.4f, %.4f, %.4f, %.4f", powers[0], powers[1], powers[2], powers[3]));
-            } else {
-                telemetry.addData("Pos", "Unknown");
+                        pos = lastLocation.getTranslation();
+                        rot = Orientation.getOrientation(lastLocation, AxesReference.EXTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS);
+                    } else {
+                        telemetry.addData("Pos", "Unknown");
+                    }
+                    telemetry.update();
+                    break;
+                case ROTATE:
+                    double lastAngle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+                    double targetAngle = lastAngle - rot.thirdAngle;
+                    while (targetAngle < -Math.PI) targetAngle += 2 * Math.PI;
+                    while (targetAngle > Math.PI) targetAngle -= 2 * Math.PI;
+
+                    // Calculates direction based on the fastest way to get to the target angle
+                    double direction = ((targetAngle - lastAngle > 0) ^ (Math.abs(targetAngle - lastAngle) > Math.PI)) ? 1.0 : -1.0;
+                    setPowers(0.2 * direction);
+
+                    while (true) {
+                        double angle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+
+                        telemetry.addData("State", "ROTATE");
+                        telemetry.addData("Current Angle", angle);
+                        telemetry.addData("Target Angle", targetAngle);
+                        telemetry.addData("Angle Difference", angle - targetAngle);
+                        telemetry.addData("Direction", direction);
+                        telemetry.addData("Last Angle", lastAngle);
+                        telemetry.update();
+
+                        if (angle * direction >= targetAngle * direction && lastAngle * direction < targetAngle * direction) {
+                            setPowers(0);
+                            state = State.STOP;
+                            break;
+                        } else {
+                            setPowers(Math.min(0.2, 0.075 + direction * (targetAngle - angle)) * direction);
+                        }
+
+                        lastAngle = angle;
+                    }
+
+                    break;
+                case STOP:
+                    telemetry.addData("State", "STOP");
+                    telemetry.update();
+                    break;
             }
-            telemetry.update();
         }
 
         testMarks.deactivate();
     }
 
-	// Units: x/y: mm, theta: radians
-	static double[] powersToMove(final double x, final double y, final double theta, final double tol) {
-    	double hypot = Math.hypot(x, y);
-    	double calcTheta = theta;
-    	while (calcTheta > Math.PI) {
-    		calcTheta -= Math.PI * 2;
-		}
-		while (calcTheta < -Math.PI) {
-    		calcTheta += Math.PI * 2;
-		}
+    private void setPowers(double power) {
+        setPowers(power, power, power, power);
+    }
 
-		if (hypot < 10 * tol && Math.abs(calcTheta) < tol * Math.PI / 360) return new double[4];
-
-		double mult = 1;
-		if (hypot < 100 * tol && Math.abs(calcTheta) < tol * Math.PI / 36) {
-			mult = Math.max(hypot / (100 * tol), Math.abs(calcTheta) / (tol * Math.PI / 36));
-		}
-
-		final double timeToMove = hypot / 239.38936;
-		double timeToTurn = Math.abs(calcTheta) / 1.37444679;
-
-		timeToTurn *= 2;
-
-//		System.out.printf("%.4g, %.4g, %.4g; %.4g | %.4g\n", x, y, theta, timeToMove, timeToTurn);
-
-		final double moveMult = mult * (timeToMove > timeToTurn ? 1 : timeToMove / timeToTurn);
-		final double turnMult = mult * (timeToMove > timeToTurn ? timeToTurn / timeToMove : 1);
-
-		final double moveAngle = Math.atan2(-y, -x);
-		final double power1 = moveMult * Math.cos(moveAngle - Math.PI / 4 - theta);
-		final double power2 = moveMult * Math.sin(moveAngle - Math.PI / 4 - theta);
-
-		final double[] ret = {power1, power2, -power1, -power2};
-		for (int i = 0; i < 4; i++) {
-			ret[i] = Math.min(1, Math.max(-1, ret[i] + turnMult * (theta > Math.PI ? 1 : -1)));
-		}
-		return ret;
-	}
+    private void setPowers(double leftFront, double leftBack, double rightFront, double rightBack) {
+        motors[0].setPower(leftFront);
+        motors[1].setPower(leftBack);
+        motors[2].setPower(rightFront);
+        motors[3].setPower(rightBack);
+    }
 
     /**
      * A simple utility that extracts positioning information from a transformation matrix
