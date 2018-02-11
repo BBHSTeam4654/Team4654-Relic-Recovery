@@ -29,14 +29,19 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.disnodeteam.dogecv.CameraViewDisplay;
+import com.disnodeteam.dogecv.detectors.CryptoboxDetector;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.TouchSensor;
 import com.qualcomm.robotcore.util.RobotLog;
 
-import org.firstinspires.ftc.robotcore.external.ClassFactory;
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -49,10 +54,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackableDefaultListener;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * This 2016-2017 OpMode illustrates the basics of using the Vuforia localizer to determine
@@ -89,6 +90,16 @@ import java.util.List;
 // @Disabled
 public class JellyfishFollower extends LinearOpMode {
 
+    private final ColorMode colorMode;
+
+    public JellyfishFollower(ColorMode colorMode){
+        this.colorMode = colorMode;
+    }
+
+    public JellyfishFollower() {
+        this(null);
+    }
+
     public static final String TAG = "Jellyfish Finder";
 
     private OpenGLMatrix lastLocation = null;
@@ -97,20 +108,21 @@ public class JellyfishFollower extends LinearOpMode {
      * vuforia is the variable we will use to store our instance of the Vuforia
      * localization engine.
      */
-	private VuforiaLocalizer vuforia;
+	private ClosableVuforiaLocalizer vuforia;
 
     private BNO055IMU imu;
     private DcMotor[] motors = new DcMotor[4];
+    private ColorSensor color;
+    private TouchSensor touch;
+    private Servo colorArm, touchArm, glpyh;
 
-    private enum State {
-        VUFORIA,
-        ROTATE,
-        XAXIS,
-        YAXIS,
-        STOP
+    private enum ColorMode {
+        RED,
+        BLUE;
     }
 
-    @Override public void runOpMode() {
+    @Override
+    public void runOpMode() {
         /*
          * To start up Vuforia, tell it the view that we wish to use for camera monitor (on the RC phone);
          * If no camera monitor is desired, use the parameterless constructor instead (commented out below).
@@ -121,10 +133,21 @@ public class JellyfishFollower extends LinearOpMode {
         // OR...  Do Not Activate the Camera Monitor View, to save power
         // VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
 
-		final String[] names = {"leftFront", "leftBack", "rightFront", "rightBack"};
+        color = hardwareMap.colorSensor.get("colorSensor");
+        colorArm = hardwareMap.servo.get("colorArm");
+        touch = hardwareMap.touchSensor.get("touchSensor");
+        touchArm = hardwareMap.servo.get("touchArm");
+        glpyh = hardwareMap.servo.get("glpyhDrop");
+        colorArm.setPosition(0.7);
+        touchArm.setPosition(0); // TODO: Find correct position
+        glpyh.setPosition(0.4);
+
+        final String[] names = {"leftFront", "leftBack", "rightFront", "rightBack"};
         for (int i = 0; i < motors.length; i++) {
         	motors[i] = hardwareMap.dcMotor.get(names[i]);
 		}
+		motors[0].setDirection(DcMotorSimple.Direction.REVERSE);
+        motors[1].setDirection(DcMotorSimple.Direction.REVERSE);
 
         // Set up the parameters with which we will use our IMU. Note that integration
         // algorithm here just reports accelerations to the logcat log; it doesn't actually
@@ -143,19 +166,6 @@ public class JellyfishFollower extends LinearOpMode {
         imu = hardwareMap.get(BNO055IMU.class, "imu");
         imu.initialize(parametersIMU);
 
-
-        /*
-         * IMPORTANT: You need to obtain your own license key to use Vuforia. The string below with which
-         * 'parameters.vuforiaLicenseKey' is initialized is for illustration only, and will not function.
-         * A Vuforia 'Development' license key, can be obtained free of charge from the Vuforia developer
-         * web site at https://developer.vuforia.com/license-manager.
-         *
-         * Vuforia license keys are always 380 characters long, and look as if they contain mostly
-         * random data. As an example, here is a example of a fragment of a valid key:
-         *      ... yIgIzTqZ4mWjk9wd3cZO9T1axEqzuhxoGlfOOI2dRzKS4T0hQ8kT ...
-         * Once you've obtained a license key, copy the string from the Vuforia web site
-         * and paste it in to your code onthe next line, between the double quotes.
-         */
         parameters.vuforiaLicenseKey = "AV7cAYn/////AAAAGXDR1Nv900lOoewPO1Nq3ypDBIfk+d8X+UJOgVQZn5ZvQIY5Y4yGL6DVf24bEoMOVLCq5sZXPs9937r2zpeSZQaaaJbxeWggveVuvccsVlBdR38brId6fIRi/ssxtkUpVppCaRDO1N6K7IVbAJWrhpv1rG2DqTcS51znxjEYDE34AN6sNkurIq/qs0tLfvI+lx5VYRKdqh5LwnVt2HnpdX836kSbAN/1wnupzlLSKHcVPF9zlmRjCXrHduW8ikVefKAPGNCEzaDj4D+X+YM9iaHj9H8qN23bbaT81Ze3g5WwrXsb6dsX1N3+FqeXbiEUB02lXsmGwtvCJI89xutgPzlDAHqerduaLS2WZbL3oVyS";
 
         /*
@@ -164,7 +174,8 @@ public class JellyfishFollower extends LinearOpMode {
          * for a competition robot, the front camera might be more convenient.
          */
         parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
-        this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+        //this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+        this.vuforia = new ClosableVuforiaLocalizer(parameters);
 
         /*
          * Load the data sets that for the trackable objects we wish to track. These particular data
@@ -172,13 +183,17 @@ public class JellyfishFollower extends LinearOpMode {
          * Studio 'Project' view over there on the left of the screen). You can make your own datasets
          * with the Vuforia Target Manager: https://developer.vuforia.com/target-manager.
          */
-        VuforiaTrackables testMarks = this.vuforia.loadTrackablesFromAsset("TestMarks");
-        VuforiaTrackable jellyfish = testMarks.get(0);
-        jellyfish.setName("Jellyfish");  // Stones
+        VuforiaTrackables fieldTargets = this.vuforia.loadTrackablesFromAsset("FieldTargets");
+        fieldTargets.get(0).setName("1");
+        fieldTargets.get(1).setName("0");
+        fieldTargets.get(2).setName("2");
 
-        /* For convenience, gather together all the trackable objects in one easily-iterable collection */
-        List<VuforiaTrackable> allTrackables = new ArrayList<>();
-        allTrackables.add(jellyfish);
+//        VuforiaTrackable jellyfish = fieldTargets.get(0);
+//        jellyfish.setName("Jellyfish");  // Stones
+//
+//        /* For convenience, gather together all the trackable objects in one easily-iterable collection */
+//        List<VuforiaTrackable> allTrackables = new ArrayList<>();
+//        allTrackables.add(jellyfish);
 
         /*
          * We use units of mm here because that's the recommended units of measurement for the
@@ -247,16 +262,16 @@ public class JellyfishFollower extends LinearOpMode {
          * - Then we rotate it  90 around the field's Z access to face it away from the audience.
          * - Finally, we translate it back along the X axis towards the red audience wall.
          */
-        OpenGLMatrix jellyfishLocation = OpenGLMatrix
-                /* Then we translate the target off to the RED WALL. Our translation here
-                is a negative translation in X.*/
-                .translation(0, 609.6F, 0)
-                .multiplied(Orientation.getRotationMatrix(
-                        /* First, in the fixed (field) coordinate system, we rotate 90deg in X, then 90 in Z */
-                        AxesReference.EXTRINSIC, AxesOrder.XYZ,
-                        AngleUnit.DEGREES, 90, 0, 0));
-        jellyfish.setLocation(jellyfishLocation);
-        RobotLog.ii(TAG, "Red Target=%s", format(jellyfishLocation));
+//        OpenGLMatrix jellyfishLocation = OpenGLMatrix
+//                /* Then we translate the target off to the RED WALL. Our translation here
+//                is a negative translation in X.*/
+//                .translation(0, 609.6F, 0)
+//                .multiplied(Orientation.getRotationMatrix(
+//                        /* First, in the fixed (field) coordinate system, we rotate 90deg in X, then 90 in Z */
+//                        AxesReference.EXTRINSIC, AxesOrder.XYZ,
+//                        AngleUnit.DEGREES, 90, 0, 0));
+//        jellyfish.setLocation(jellyfishLocation);
+//        RobotLog.ii(TAG, "Red Target=%s", format(jellyfishLocation));
 
        /*
         * To place the Stones Target on the Blue Audience wall:
@@ -298,8 +313,8 @@ public class JellyfishFollower extends LinearOpMode {
          * listener is a {@link VuforiaTrackableDefaultListener} and can so safely cast because
          * we have not ourselves installed a listener of a different type.
          */
-        ((VuforiaTrackableDefaultListener) jellyfish.getListener()).setPhoneInformation(phoneLocationOnRobot, parameters.cameraDirection);
-       //  ((VuforiaTrackableDefaultListener)blueTarget.getListener()).setPhoneInformation(phoneLocationOnRobot, parameters.cameraDirection);
+        //((VuforiaTrackableDefaultListener) jellyfish.getListener()).setPhoneInformation(phoneLocationOnRobot, parameters.cameraDirection);
+        //((VuforiaTrackableDefaultListener)blueTarget.getListener()).setPhoneInformation(phoneLocationOnRobot, parameters.cameraDirection);
 
         /*
          * A brief tutorial: here's how all the math is going to work:
@@ -326,89 +341,151 @@ public class JellyfishFollower extends LinearOpMode {
         waitForStart();
 
         /* Start tracking the data sets we care about. */
-        testMarks.activate();
+        fieldTargets.activate();
 
+        double initialRot = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+        CryptoboxDetector crypto = null;
         imu.startAccelerationIntegration(new Position(), new Velocity(), 100);
-        State state = State.VUFORIA;
         VectorF pos = null;
         Orientation rot = null;
+        int column = -1;
 
+        telemetry.log().add("State: VUFORIA");
+        vuforia:
         while (opModeIsActive()) {
-
-            switch (state) {
-                case VUFORIA:
-                    telemetry.addData("State", "VUFORIA");
-                    for (VuforiaTrackable trackable : allTrackables) {
-                        /*
-                         * getUpdatedRobotLocation() will return null if no new information is available since
-                         * the last time that call was made, or if the trackable is not currently visible.
-                         * getRobotLocation() will return null if the trackable is not currently visible.
-                         */
-                        telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener)trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
-
-                        OpenGLMatrix robotLocationTransform = ((VuforiaTrackableDefaultListener)trackable.getListener()).getUpdatedRobotLocation();
-                        if (robotLocationTransform != null) {
-                            lastLocation = robotLocationTransform;
-                            state = State.ROTATE;
-                        }
-                    }
-                    /*
-                     * Provide feedback as to where the robot was last located (if we know).
-                     */
-                    if (lastLocation != null) {
-                        telemetry.addData("Matrix", Arrays.toString(lastLocation.getData()));
-                        //  RobotLog.vv(TAG, "robot=%s", format(lastLocation));
-                        telemetry.addData("Pos", format(lastLocation));
-                        telemetry.addData("Translation", lastLocation.getTranslation());
-
-                        pos = lastLocation.getTranslation();
-                        rot = Orientation.getOrientation(lastLocation, AxesReference.EXTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS);
-                    } else {
-                        telemetry.addData("Pos", "Unknown");
-                    }
-                    telemetry.update();
-                    break;
-                case ROTATE:
-                    double lastAngle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
-                    double targetAngle = lastAngle - rot.thirdAngle;
-                    while (targetAngle < -Math.PI) targetAngle += 2 * Math.PI;
-                    while (targetAngle > Math.PI) targetAngle -= 2 * Math.PI;
-
-                    // Calculates direction based on the fastest way to get to the target angle
-                    double direction = ((targetAngle - lastAngle > 0) ^ (Math.abs(targetAngle - lastAngle) > Math.PI)) ? 1.0 : -1.0;
-                    setPowers(0.2 * direction);
-
-                    while (true) {
-                        double angle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
-
-                        telemetry.addData("State", "ROTATE");
-                        telemetry.addData("Current Angle", angle);
-                        telemetry.addData("Target Angle", targetAngle);
-                        telemetry.addData("Angle Difference", angle - targetAngle);
-                        telemetry.addData("Direction", direction);
-                        telemetry.addData("Last Angle", lastAngle);
-                        telemetry.update();
-
-                        if (angle * direction >= targetAngle * direction && lastAngle * direction < targetAngle * direction) {
-                            setPowers(0);
-                            state = State.STOP;
-                            break;
-                        } else {
-                            setPowers(Math.min(0.2, 0.075 + direction * (targetAngle - angle)) * direction);
-                        }
-
-                        lastAngle = angle;
-                    }
-
-                    break;
-                case STOP:
-                    telemetry.addData("State", "STOP");
-                    telemetry.update();
-                    break;
+            for (VuforiaTrackable trackable : fieldTargets) {
+                telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener) trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
+                if (((VuforiaTrackableDefaultListener) trackable.getListener()).isVisible()) {
+                    column = Integer.parseInt(trackable.getName());
+                    telemetry.log().add("Column " + column);
+                    break vuforia;
+                }
             }
         }
+        sleep(5000);
 
-        testMarks.deactivate();
+        // COLOR
+        telemetry.log().add("State: COLOR");
+        colorArm.setPosition(.066);
+        sleep(1000);
+        int red = color.red();
+        int blue = color.blue();
+        if (red > blue) {
+            telemetry.log().add("Red");
+            setPowers(0.2);
+        } else {
+            telemetry.log().add("Blue");
+            setPowers(-0.2);
+        }
+        sleep(1000);
+        setPowers(0, 0, 0, 0);
+        colorArm.setPosition(0.7);
+
+        // DOGECV
+        vuforia.close();
+        crypto = new CryptoboxDetector();
+        crypto.init(hardwareMap.appContext, CameraViewDisplay.getInstance());
+        //crypto.downScaleFactor = 0.4; // IDK what this does
+        crypto.detectionMode = CryptoboxDetector.CryptoboxDetectionMode.BLUE; // or red
+        crypto.rotateMat = true;
+        crypto.enable();
+        sleep(5000);
+        setPowers(0.2);
+
+        while (opModeIsActive()) {
+            telemetry.addData("State", "DOGECV");
+            telemetry.addData("Left Position", crypto.getCryptoBoxLeftPosition());
+            telemetry.addData("Center Position", crypto.getCryptoBoxCenterPosition());
+            telemetry.addData("Right Position", crypto.getCryptoBoxRightPosition());
+            telemetry.addData("Target Column", column);
+            telemetry.addData("Width", crypto.getWidth());
+            telemetry.update();
+
+            if (Math.abs(crypto.getCryptoBoxPositions()[2 - column] - crypto.getWidth() / 2) < 5) {
+                break;
+            }
+        }
+        setPowers(0);
+        sleep(3000);
+
+        // ROTATE
+        double lastAngle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+        double targetAngle = initialRot;
+        while (targetAngle < -Math.PI) targetAngle += 2 * Math.PI;
+        while (targetAngle > Math.PI) targetAngle -= 2 * Math.PI;
+
+        // Calculates direction based on the fastest way to get to the target angle
+        double direction = ((targetAngle - lastAngle > 0) ^ (Math.abs(targetAngle - lastAngle) > Math.PI)) ? 1.0 : -1.0;
+        setPowers(0.2 * direction);
+        while (opModeIsActive()) {
+            double angle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+
+            telemetry.addData("State", "ROTATE");
+            telemetry.addData("Current Angle", angle);
+            telemetry.addData("Target Angle", targetAngle);
+            telemetry.addData("Angle Difference", angle - targetAngle);
+            telemetry.addData("Direction", direction);
+            telemetry.addData("Last Angle", lastAngle);
+            telemetry.update();
+
+            if (angle * direction >= targetAngle * direction && lastAngle * direction < targetAngle * direction) {
+                setPowers(0);
+                break;
+            } else {
+                setPowers(Math.min(0.2, 0.075 + direction * (targetAngle - angle)) * direction);
+            }
+
+            lastAngle = angle;
+        }
+
+        sleep(1000);
+        touchArm.setPosition(0.6); // TODO: Find correct position
+        setMecanumPowers(-Math.PI / 2, 0.15);
+
+        long start = System.currentTimeMillis();
+        while (opModeIsActive() && !touch.isPressed() && System.currentTimeMillis() - start < 3000);
+        setPowers(0);
+        glpyh.setPosition(0);
+        touchArm.setPosition(0); // TODO: Find correct position
+        sleep(2000);
+        setMecanumPowers(Math.PI / 2, 0.2);
+        sleep(500);
+
+        telemetry.log().add("DONE");
+        fieldTargets.deactivate();
+        crypto.disable();
+        sleep(10000);
+
+//                    double lastAngle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+//                    double targetAngle = lastAngle - rot.thirdAngle;
+//                    while (targetAngle < -Math.PI) targetAngle += 2 * Math.PI;
+//                    while (targetAngle > Math.PI) targetAngle -= 2 * Math.PI;
+//
+//                    // Calculates direction based on the fastest way to get to the target angle
+//                    double direction = ((targetAngle - lastAngle > 0) ^ (Math.abs(targetAngle - lastAngle) > Math.PI)) ? 1.0 : -1.0;
+//                    setPowers(0.2 * direction);
+//
+//                    while (opModeIsActive()) {
+//                        double angle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+//
+//                        telemetry.addData("State", "ROTATE");
+//                        telemetry.addData("Current Angle", angle);
+//                        telemetry.addData("Target Angle", targetAngle);
+//                        telemetry.addData("Angle Difference", angle - targetAngle);
+//                        telemetry.addData("Direction", direction);
+//                        telemetry.addData("Last Angle", lastAngle);
+//                        telemetry.update();
+//
+//                        if (angle * direction >= targetAngle * direction && lastAngle * direction < targetAngle * direction) {
+//                            setPowers(0);
+//                            state = State.STOP;
+//                            break;
+//                        } else {
+//                            setPowers(Math.min(0.2, 0.075 + direction * (targetAngle - angle)) * direction);
+//                        }
+//
+//                        lastAngle = angle;
+//                    }
     }
 
     private void setPowers(double power) {
@@ -420,6 +497,13 @@ public class JellyfishFollower extends LinearOpMode {
         motors[1].setPower(leftBack);
         motors[2].setPower(rightFront);
         motors[3].setPower(rightBack);
+    }
+
+    private void setMecanumPowers(double angle, double power) {
+        double sin = Math.sin(angle - Math.PI / 4);
+        double cos = Math.cos(angle - Math.PI / 4);
+
+        setPowers(power * sin, power * cos, power * cos, power * sin);
     }
 
     /**
