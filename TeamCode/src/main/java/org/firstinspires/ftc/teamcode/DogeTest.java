@@ -38,5 +38,8 @@ public class DogeTest extends OpMode {
 		try {
 			Files.write(Paths.get("/sdcard/FIRST/dogeOutput.txt"), cd.getOutput().getBytes());
 		} catch (IOException e) {}
+		try {
+			Files.write(Paths.get("/FIRST/dogeOutput.txt"), cd.getOutput().getBytes());
+		} catch (IOException e) {}
 	}
 }
