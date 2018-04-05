@@ -95,9 +95,9 @@ public class JellyfishFollower extends LinearOpMode {
 		this.colorMode = colorMode;
 	}
 
-	public JellyfishFollower() {
-		this(ColorMode.RED);
-	}
+    public JellyfishFollower() {
+        this(ColorMode.RED);
+    }
 
 	public static final String TAG = "Jellyfish Finder";
 
@@ -341,147 +341,123 @@ public class JellyfishFollower extends LinearOpMode {
 		waitForStart();
 
         /* Start tracking the data sets we care about. */
-		fieldTargets.activate();
+        fieldTargets.activate();
 
-		double initialRot = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
-		CryptoboxDetector crypto = null;
-		imu.startAccelerationIntegration(new Position(), new Velocity(), 100);
-		VectorF pos = null;
-		Orientation rot = null;
-		int column = -1;
+        double initialRot = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+        CryptoboxDetector crypto = null;
+        imu.startAccelerationIntegration(new Position(), new Velocity(), 100);
+        VectorF pos = null;
+        Orientation rot = null;
+        int column = -1;
 
-		telemetry.log().add("State: VUFORIA");
-		while (opModeIsActive()) {
-			boolean toBreak = false;
-			for (VuforiaTrackable trackable : fieldTargets) {
-				telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener) trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
-				if (((VuforiaTrackableDefaultListener) trackable.getListener()).isVisible()) {
-					column = Integer.parseInt(trackable.getName());
-					telemetry.log().add("Column " + column);
-					toBreak = true;
-				}
-			}
-			if (toBreak) {
+        telemetry.log().add("State: VUFORIA");
+        vuforia: while (opModeIsActive()) {
+            for (VuforiaTrackable trackable : fieldTargets) {
+                telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener) trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
+                if (((VuforiaTrackableDefaultListener) trackable.getListener()).isVisible()) {
+                    column = Integer.parseInt(trackable.getName());
+                    telemetry.log().add("Column " + column);
+                }
 				vuforia.close();
-				break;
-			}
-		}
-		sleep(2000);
+				break vuforia;
+            }
+        }
+        sleep(5000);
 
-		// COLOR
-		telemetry.log().add("State: COLOR");
-		colorArm.setPosition(.064);
-		sleep(1000);
-		int red = color.red();
-		int blue = color.blue();
-		boolean forwards = (red > blue) == (colorMode == ColorMode.RED);
-		if (forwards) {
-			telemetry.log().add("Red");
-			setPowers(0.2);
-		} else {
-			telemetry.log().add("Blue");
-			setPowers(-0.2);
-		}
-		sleep(777);
-		setPowers(0, 0, 0, 0);
-		colorArm.setPosition(0.6);
+        // COLOR
+        telemetry.log().add("State: COLOR");
+        colorArm.setPosition(.064);
+        sleep(1000);
+        int red = color.red();
+        int blue = color.blue();
+        if ((red > blue) == (colorMode == ColorMode.RED)) {
+            telemetry.log().add("Red");
+            setPowers(0.2);
+        } else {
+            telemetry.log().add("Blue");
+            setPowers(-0.2);
+        }
+        sleep(777);
+        setPowers(0, 0, 0, 0);
+        colorArm.setPosition(0.7);
 
-		// DOGECV
-		crypto = new CryptoboxDetector();
-		crypto.init(hardwareMap.appContext, CameraViewDisplay.getInstance());
-		//crypto.downScaleFactor = 0.4; // IDK what this does
-		crypto.detectionMode = CryptoboxDetector.CryptoboxDetectionMode.BLUE; // or red
-		// crypto.rotateMat = true;
-		crypto.enable();
-		sleep(5000);
-		setPowers(0.5);
-		sleep(forwards ? 700 : 2000);
-//		setPowers(0.3, -0.3, -0.3,  0.3);
-//		sleep(2000);
-		setPowers(0.2);
+        // DOGECV
+        crypto = new CryptoboxDetector();
+        crypto.init(hardwareMap.appContext, CameraViewDisplay.getInstance());
+        //crypto.downScaleFactor = 0.4; // IDK what this does
+        crypto.detectionMode = CryptoboxDetector.CryptoboxDetectionMode.BLUE; // or red
+        crypto.rotateMat = true;
+        crypto.enable();
+        sleep(5000);
+        setPowers(0.2);
 
-		long start = System.currentTimeMillis();
-		while (opModeIsActive()) {
-			telemetry.addData("State", "DOGECV");
-			telemetry.addData("Left Position", crypto.getCryptoBoxLeftPosition());
-			telemetry.addData("Center Position", crypto.getCryptoBoxCenterPosition());
-			telemetry.addData("Right Position", crypto.getCryptoBoxRightPosition());
-			telemetry.addData("Target Column", column);
-			telemetry.addData("Width", crypto.getWidth());
-			telemetry.update();
+        while (opModeIsActive()) {
+            telemetry.addData("State", "DOGECV");
+            telemetry.addData("Left Position", crypto.getCryptoBoxLeftPosition());
+            telemetry.addData("Center Position", crypto.getCryptoBoxCenterPosition());
+            telemetry.addData("Right Position", crypto.getCryptoBoxRightPosition());
+            telemetry.addData("Target Column", column);
+            telemetry.addData("Width", crypto.getWidth());
+            telemetry.update();
 
-			//if (crypto.getCryptoBoxPositions()[2 - column] - crypto.getWidth() / 2 < 0) {
-			if (crypto.isColumnDetected()) {
-				break;
-			}
-		}
+            if (Math.abs(crypto.getCryptoBoxPositions()[2 - column] - crypto.getWidth() / 2) < 5) {
+                break;
+            }
+        }
+        setPowers(0);
+        sleep(3000);
 
-		start = System.currentTimeMillis();
-		long constant = 0, columnTime = 1000;
-		while (opModeIsActive() && System.currentTimeMillis() - start < constant + columnTime * column) {
-			telemetry.addData("Time Left", (constant + columnTime * column) - (System.currentTimeMillis() - start));
-			telemetry.update();
-			sleep(1);
-		}
-		sleep(3000);
+        // ROTATE
+        double lastAngle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
+        double targetAngle = initialRot;
+        while (targetAngle < -Math.PI) targetAngle += 2 * Math.PI;
+        while (targetAngle > Math.PI) targetAngle -= 2 * Math.PI;
 
-		if (!opModeIsActive()) return;
-		setPowers(0);
+        // Calculates direction based on the fastest way to get to the target angle
+        double direction = ((targetAngle - lastAngle > 0) ^ (Math.abs(targetAngle - lastAngle) > Math.PI)) ? 1.0 : -1.0;
+        setPowers(0.2 * direction);
+        while (opModeIsActive()) {
+            double angle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
 
-		// ROTATE
-		double lastAngle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
-		double targetAngle = initialRot;
-		while (targetAngle < -Math.PI) targetAngle += 2 * Math.PI;
-		while (targetAngle > Math.PI) targetAngle -= 2 * Math.PI;
+            telemetry.addData("State", "ROTATE");
+            telemetry.addData("Current Angle", angle);
+            telemetry.addData("Target Angle", targetAngle);
+            telemetry.addData("Angle Difference", angle - targetAngle);
+            telemetry.addData("Direction", direction);
+            telemetry.addData("Last Angle", lastAngle);
+            telemetry.update();
 
-//		// Calculates direction based on the fastest way to get to the target angle
-//		double direction = ((targetAngle - lastAngle > 0) ^ (Math.abs(targetAngle - lastAngle) > Math.PI)) ? 1.0 : -1.0;
-//		setPowers(0.2 * direction, 0.2 * direction, -0.2 * direction, -0.2 * direction);
-//		while (opModeIsActive()) {
-//			double angle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
-//
-//			telemetry.addData("State", "ROTATE");
-//			telemetry.addData("Current Angle", angle);
-//			telemetry.addData("Target Angle", targetAngle);
-//			telemetry.addData("Angle Difference", angle - targetAngle);
-//			telemetry.addData("Direction", direction);
-//			telemetry.addData("Last Angle", lastAngle);
-//			telemetry.update();
-//
-//			if (angle * direction >= targetAngle * direction && lastAngle * direction < targetAngle * direction) {
-//				setPowers(0);
-//				break;
-//			} else {
-//				double p = Math.min(0.2, 0.075 + direction * (targetAngle - angle)) * direction;
-//				setPowers(p, p, -p, -p);
-//			}
-//
-//			lastAngle = angle;
-//		}
+            if (angle * direction >= targetAngle * direction && lastAngle * direction < targetAngle * direction) {
+                setPowers(0);
+                break;
+            } else {
+                setPowers(Math.min(0.2, 0.075 + direction * (targetAngle - angle)) * direction);
+            }
 
+            lastAngle = angle;
+        }
 
-		sleep(1000);
-		// touchArm.setPosition(0.6); // TODO: Find correct position
-		setPowers(-0.4, 0.4, 0.4,  -0.4);
+        sleep(1000);
+        // touchArm.setPosition(0.6); // TODO: Find correct position
+        setMecanumPowers(-Math.PI / 2, 0.15);
 
-		start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
 //        while (opModeIsActive() && !touch.isPressed() && System.currentTimeMillis() - start < 3000);
-		while (opModeIsActive() && System.currentTimeMillis() - start < 1000) {
+		while (opModeIsActive() && System.currentTimeMillis() - start < 3000) {
 			telemetry.addData("Time", System.currentTimeMillis() - start);
-			telemetry.update();
 			sleep(1);
 		}
-		setPowers(0);
-		glyph.setPosition(0);
-		sleep(2000);
-		setPowers(0.2, -0.2, -0.2,  0.2);
-		sleep(1000);
-		setPowers(0);
+        setPowers(0);
+        glpyh.setPosition(0);
+        // touchArm.setPosition(0); // TODO: Find correct position
+        sleep(2000);
+        setMecanumPowers(Math.PI / 2, 0.2);
+        sleep(500);
 
-		telemetry.log().add("DONE");
-		fieldTargets.deactivate();
-		crypto.disable();
-		sleep(10000);
+        telemetry.log().add("DONE");
+        fieldTargets.deactivate();
+        crypto.disable();
+        sleep(10000);
 
 //                    double lastAngle = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.XYZ, AngleUnit.RADIANS).thirdAngle;
 //                    double targetAngle = lastAngle - rot.thirdAngle;

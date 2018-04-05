@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.graphics.Camera;
 import android.util.Log;
 
 import com.disnodeteam.dogecv.CameraViewDisplay;
@@ -17,7 +18,7 @@ public class DogeTest extends OpMode {
 	@Override
 	public void init() {
 		cd = new CryptoboxDetector();
-// 		cd.rotateMat = true;
+		cd.rotateMat = true;
 		cd.detectionMode = CryptoboxDetector.CryptoboxDetectionMode.BLUE;
 		cd.init(hardwareMap.appContext, CameraViewDisplay.getInstance());
 	}
