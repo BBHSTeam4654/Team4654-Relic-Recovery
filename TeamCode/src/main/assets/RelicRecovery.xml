@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QCARConfig xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="qcar_config.xsd">
+  <Tracking>
+    <ImageTarget name="RightPicto" size="150.000000 56.016598" />
+    <ImageTarget name="CenterPicto" size="150.000000 56.095043" />
+    <ImageTarget name="LeftPicto" size="150.000000 57.172131" />
+  </Tracking>
+</QCARConfig>
