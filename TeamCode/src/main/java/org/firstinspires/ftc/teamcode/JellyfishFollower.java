@@ -97,7 +97,7 @@ public class JellyfishFollower extends LinearOpMode {
     }
 
     public JellyfishFollower() {
-        this(null);
+        this(ColorMode.RED);
     }
 
     public static final String TAG = "Jellyfish Finder";
@@ -113,10 +113,11 @@ public class JellyfishFollower extends LinearOpMode {
     private BNO055IMU imu;
     private DcMotor[] motors = new DcMotor[4];
     private ColorSensor color;
-    private TouchSensor touch;
-    private Servo colorArm, touchArm, glpyh;
+    // private TouchSensor touch;
+    private Servo colorArm, glpyh;
+//    private Servo touchArm;
 
-    private enum ColorMode {
+	private enum ColorMode {
         RED,
         BLUE;
     }
@@ -135,11 +136,11 @@ public class JellyfishFollower extends LinearOpMode {
 
         color = hardwareMap.colorSensor.get("colorSensor");
         colorArm = hardwareMap.servo.get("colorArm");
-        touch = hardwareMap.touchSensor.get("touchSensor");
-        touchArm = hardwareMap.servo.get("touchArm");
+        // touch = hardwareMap.touchSensor.get("touchSensor");
+        // touchArm = hardwareMap.servo.get("touchArm");
         glpyh = hardwareMap.servo.get("glpyhDrop");
         colorArm.setPosition(0.7);
-        touchArm.setPosition(0); // TODO: Find correct position
+//        touchArm.setPosition(0); // TODO: Find correct position
         glpyh.setPosition(0.4);
 
         final String[] names = {"leftFront", "leftBack", "rightFront", "rightBack"};
@@ -305,7 +306,7 @@ public class JellyfishFollower extends LinearOpMode {
                 .translation(0,0,0)
                 .multiplied(Orientation.getRotationMatrix(
                         AxesReference.EXTRINSIC, AxesOrder.XZY,
-                        AngleUnit.DEGREES, 90, 0, 0));
+                        AngleUnit.DEGREES, 90, -90, 0));
         RobotLog.ii(TAG, "phone=%s", format(phoneLocationOnRobot));
 
         /*
@@ -351,38 +352,37 @@ public class JellyfishFollower extends LinearOpMode {
         int column = -1;
 
         telemetry.log().add("State: VUFORIA");
-        vuforia:
-        while (opModeIsActive()) {
+        vuforia: while (opModeIsActive()) {
             for (VuforiaTrackable trackable : fieldTargets) {
                 telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener) trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
                 if (((VuforiaTrackableDefaultListener) trackable.getListener()).isVisible()) {
                     column = Integer.parseInt(trackable.getName());
                     telemetry.log().add("Column " + column);
-                    break vuforia;
                 }
+				vuforia.close();
+				break vuforia;
             }
         }
         sleep(5000);
 
         // COLOR
         telemetry.log().add("State: COLOR");
-        colorArm.setPosition(.066);
+        colorArm.setPosition(.064);
         sleep(1000);
         int red = color.red();
         int blue = color.blue();
-        if (red > blue) {
+        if ((red > blue) == (colorMode == ColorMode.RED)) {
             telemetry.log().add("Red");
             setPowers(0.2);
         } else {
             telemetry.log().add("Blue");
             setPowers(-0.2);
         }
-        sleep(1000);
+        sleep(777);
         setPowers(0, 0, 0, 0);
         colorArm.setPosition(0.7);
 
         // DOGECV
-        vuforia.close();
         crypto = new CryptoboxDetector();
         crypto.init(hardwareMap.appContext, CameraViewDisplay.getInstance());
         //crypto.downScaleFactor = 0.4; // IDK what this does
@@ -439,14 +439,18 @@ public class JellyfishFollower extends LinearOpMode {
         }
 
         sleep(1000);
-        touchArm.setPosition(0.6); // TODO: Find correct position
+        // touchArm.setPosition(0.6); // TODO: Find correct position
         setMecanumPowers(-Math.PI / 2, 0.15);
 
         long start = System.currentTimeMillis();
-        while (opModeIsActive() && !touch.isPressed() && System.currentTimeMillis() - start < 3000);
+//        while (opModeIsActive() && !touch.isPressed() && System.currentTimeMillis() - start < 3000);
+		while (opModeIsActive() && System.currentTimeMillis() - start < 3000) {
+			telemetry.addData("Time", System.currentTimeMillis() - start);
+			sleep(1);
+		}
         setPowers(0);
         glpyh.setPosition(0);
-        touchArm.setPosition(0); // TODO: Find correct position
+        // touchArm.setPosition(0); // TODO: Find correct position
         sleep(2000);
         setMecanumPowers(Math.PI / 2, 0.2);
         sleep(500);
