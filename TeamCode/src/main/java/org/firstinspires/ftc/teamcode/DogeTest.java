@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode;
 
-import android.graphics.Camera;
 import android.util.Log;
 
 import com.disnodeteam.dogecv.CameraViewDisplay;
@@ -30,7 +29,7 @@ public class DogeTest extends OpMode {
 
 	@Override
 	public void loop() {
-		telemetry.addData("Positions", Arrays.toString(cd.getCryptoBoxPositions()));
+		telemetry.addData("Positions", Arrays.toString(cd.getColumnPositions()));
 	}
 
 	@Override

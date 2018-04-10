@@ -392,17 +392,17 @@ public class JellyfishFollower extends LinearOpMode {
         setPowers(0.2);
 
         while (opModeIsActive()) {
-            telemetry.addData("State", "DOGECV");
-            telemetry.addData("Left Position", crypto.getCryptoBoxLeftPosition());
-            telemetry.addData("Center Position", crypto.getCryptoBoxCenterPosition());
-            telemetry.addData("Right Position", crypto.getCryptoBoxRightPosition());
-            telemetry.addData("Target Column", column);
-            telemetry.addData("Width", crypto.getWidth());
-            telemetry.update();
-
-            if (Math.abs(crypto.getCryptoBoxPositions()[2 - column] - crypto.getWidth() / 2) < 5) {
-                break;
-            }
+//            telemetry.addData("State", "DOGECV");
+//            telemetry.addData("Left Position", crypto.getCryptoBoxLeftPosition());
+//            telemetry.addData("Center Position", crypto.getCryptoBoxCenterPosition());
+//            telemetry.addData("Right Position", crypto.getCryptoBoxRightPosition());
+//            telemetry.addData("Target Column", column);
+//            telemetry.addData("Width", crypto.getWidth());
+//            telemetry.update();
+//
+//            if (Math.abs(crypto.getCryptoBoxPositions()[2 - column] - crypto.getWidth() / 2) < 5) {
+//                break;
+//            }
         }
         setPowers(0);
         sleep(3000);
@@ -448,7 +448,7 @@ public class JellyfishFollower extends LinearOpMode {
 			sleep(1);
 		}
         setPowers(0);
-        glpyh.setPosition(0);
+//        glpyh.setPosition(0);
         // touchArm.setPosition(0); // TODO: Find correct position
         sleep(2000);
         setMecanumPowers(Math.PI / 2, 0.2);

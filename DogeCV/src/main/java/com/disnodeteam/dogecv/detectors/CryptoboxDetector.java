@@ -1,14 +1,11 @@
 package com.disnodeteam.dogecv.detectors;
 
-import android.util.Log;
-
 import com.disnodeteam.dogecv.OpenCVPipeline;
 import com.disnodeteam.dogecv.filters.DogeCVColorFilter;
 import com.disnodeteam.dogecv.filters.LeviColorFilter;
 import com.disnodeteam.dogecv.math.Line;
 import com.disnodeteam.dogecv.math.Lines;
 import com.disnodeteam.dogecv.math.MathFTC;
-import com.disnodeteam.dogecv.math.Points;
 
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -210,15 +207,20 @@ public class CryptoboxDetector extends OpenCVPipeline {
 
 		for (Iterator<RailTimeline> iter = output.iterator(); iter.hasNext();) {
 			RailTimeline rt = iter.next();
-			if (rt.framesSinceLastSeen() >= RailTimeline.KEEP_OLD_TIME) iter.remove();
+			if (rt.lastKnownPosition() < RailTimeline.NEARBY_THRESHOLD) {
+				rt.add(-32767);
+			} else if (rt.lastKnownPosition() > RailTimeline.NEARBY_THRESHOLD + mask.width()) {
+				rt.add(32767);
+			} else {
+				if (rt.framesSinceLastSeen() >= RailTimeline.KEEP_OLD_TIME) iter.remove();
 
-			rt.addPlaceholder();
+				rt.addPlaceholder();
+			}
 		}
 
 		for (Line rail : rails) {
 			double pos = rail.center().x;
-			for (Iterator<RailTimeline> iter = output.iterator(); iter.hasNext();) {
-				RailTimeline rt = iter.next();
+			for (RailTimeline rt : output) {
 				if (Math.abs(rt.lastKnownPosition() - pos) < RailTimeline.NEARBY_THRESHOLD) {
 					rt.updateLast(pos);
 					break;
@@ -282,6 +284,25 @@ public class CryptoboxDetector extends OpenCVPipeline {
 		return newSize;
 	}
 
+	public List<RailTimeline> getFullOutput() {
+		return new ArrayList<>(output);
+	}
+
+	public double[] getColumnPositions() {
+		List<Double> ret = new ArrayList<>();
+
+		for (RailTimeline rt : output) {
+			if (rt.isValid()) ret.add(rt.lastKnownPosition());
+		}
+
+		double[] retArr = new double[ret.size()];
+		for (int n = 0; n < retArr.length; n++) {
+			retArr[n] = ret.get(n);
+		}
+
+		return retArr;
+	}
+
 	private static class RailTimeline {
 		public static final int KEEP_OLD_TIME = 5;
 		public static final double NEARBY_THRESHOLD = 8;
@@ -309,6 +330,16 @@ public class CryptoboxDetector extends OpenCVPipeline {
 
 		public void updateLast(double position) {
 			positions.set(0, position);
+		}
+
+		public boolean isValid() {
+			int ct = 0;
+			for (Double d : positions) {
+				if (!Double.isNaN(d)) {
+					if (++ct > 3) break;
+				}
+			}
+			return ct > 3;
 		}
 	}
 
