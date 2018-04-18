@@ -25,37 +25,38 @@ import com.qualcomm.robotcore.util.Range;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 @TeleOp(name="Test", group="Iterative Opmode")
+@Disabled
 public class DemoOpMode extends OpMode
 {
-	private CRServo claw;
-	private ColorSensor color;
+    private CRServo claw;
+    private ColorSensor color;
 
-	/*
-	 * Code to run ONCE when the driver hits INIT
-	 */
-	@Override
-	public void init() {
-		claw = hardwareMap.crservo.get("claw");
-		color = hardwareMap.colorSensor.get("color");
-	}
+    /*
+     * Code to run ONCE when the driver hits INIT
+     */
+    @Override
+    public void init() {
+        claw = hardwareMap.crservo.get("claw");
+        color = hardwareMap.colorSensor.get("color");
+    }
 
-	/*
-	 * Code to run REPEATEDLY after the driver hits PLAY but before they hit STOP
-	 */
-	@Override
-	public void loop() {
-		// claw.setPosition((System.currentTimeMillis() / 2000) % 2);
-		float f = gamepad1.right_trigger;
-		claw.setPower(0.1f * (gamepad1.left_stick_y));
-		
-		telemetry.addData("Power", claw.getPower());
-		telemetry.addData("Color", color.argb() & 0b11111111);
-	}
-	
-	
-	
-	
-	
-	
+    /*
+     * Code to run REPEATEDLY after the driver hits PLAY but before they hit STOP
+     */
+    @Override
+    public void loop() {
+        // claw.setPosition((System.currentTimeMillis() / 2000) % 2);
+        float f = gamepad1.right_trigger;
+        claw.setPower(0.1f * (gamepad1.left_stick_y));
+        
+        telemetry.addData("Power", claw.getPower());
+        telemetry.addData("Color", color.argb() & 0b11111111);
+    }
+    
+    
+    
+    
+    
+    
 
 }

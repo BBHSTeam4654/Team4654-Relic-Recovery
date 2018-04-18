@@ -23,8 +23,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.robotcore.external.navigation.Position;
 import org.firstinspires.ftc.robotcore.external.navigation.Velocity;
 
-@TeleOp(name="New Demo", group="Iterative Opmode")
-public class NewDemoOpMode extends BaseOpMode {
+@TeleOp(name="1HugOpMode", group="Iterative Opmode")
+public class HugOpMode_Copy extends BaseOpMode {
     
     enum State {
         DRIVE,
@@ -43,11 +43,14 @@ public class NewDemoOpMode extends BaseOpMode {
     private State state = State.DRIVE;
 
     private long lastTime;
-    private double clawPos, clawPitchPos;
-
+    private long alsoLastTime;
+    
+    int temp = 0;
+    
     @Override
     public void start() {
         lastTime = System.currentTimeMillis();
+        alsoLastTime = System.currentTimeMillis();
     }
 
     @Override
@@ -56,35 +59,19 @@ public class NewDemoOpMode extends BaseOpMode {
         long deltaTime = time - lastTime;
         lastTime = time;
         
-        double armMult = gamepad2.left_bumper ? 0.3 : (gamepad2.right_bumper ? 0.15 : 0.5);
-        double clawMult = gamepad2.left_bumper ? -0.8 : (gamepad2.right_bumper ? -0.6 : -1.0);
+        if(temp == 0 && time - alsoLastTime  > 1000){
+            claw.setPosition(0);
+            temp = 1;
+            alsoLastTime = time;
+        }
+        else if(temp == 1 &&  time - alsoLastTime > 1000){
+            claw.setPosition(1.0);
+            temp = 0;
+            alsoLastTime = time;
+        }
         
-        // Claw open is .8, closed is .2
-        clawPos = Math.min(0.9, Math.max(0.25, gamepad2.right_stick_y * clawMult * deltaTime / 1000D + clawPos));
-        claw.setPosition(clawPos);
+        telemetry.addData("claw", time - alsoLastTime);
         
-        clawPitchPos = Math.min(1.0, Math.max(0.0, 0.5 * gamepad2.left_stick_y * clawMult * deltaTime / 1000D + clawPitchPos));
-        clawPitch.setPosition(clawPitchPos);
-        
-        telemetry.addData("Claw Position: ", String.format("(%.2f, %.2f)", clawPitch.getPosition(), claw.getPosition()));
-
-        
-       // telemetry.addData("Arm Position", arm.getCurrentPosition());
-        
-        //arm.setPower(armMult * (gamepad2.right_trigger - gamepad2.left_trigger));
-
-        
-        
-        
-        /*if (gamepad2.dpad_left) {
-            glyph.setPosition(1);
-        } else if (gamepad2.dpad_right) {
-            glyph.setPosition(0);
-        }*/
-        
-        glyph.setPosition(gamepad1.left_trigger);
-        telemetry.addData("GlyphPos", glyph.getPosition());
-       
         if (gamepad1.dpad_up)
             state = State.DRIVE;
         else if (gamepad1.dpad_right)
@@ -93,11 +80,6 @@ public class NewDemoOpMode extends BaseOpMode {
             state = State.TANK;
         else if (gamepad1.dpad_left)
             state = State.MECANUM2;
-        
-        if (gamepad1.x || gamepad2.x)
-            colorArm.setPosition(0.9);
-        if (gamepad1.y || gamepad2.y)
-            colorArm.setPosition(0.3);
         
         double mult = gamepad1.left_bumper ? 0.5 : (gamepad1.right_bumper ? 0.2 : 1.0);
         double x = gamepad1.left_stick_x, y = gamepad1.left_stick_y;
@@ -130,11 +112,13 @@ public class NewDemoOpMode extends BaseOpMode {
                 setPowers(mult, left,left,right,right);
                 break;
         }
+    
         telemetry.addData("State", state);
-        telemetry.addData("Color", color.argb() & 0b11111111);
+        // telemetry.addData("Color", color.argb() & 0b11111111);
+        telemetry.addData("Hug", gamepad2.right_stick_y);
     }
     
-    private void setPowers(double mult, double leftFront, double leftBack, double rightFront, double rightBack) {
-        setPowers(leftFront * mult, leftBack * mult, rightFront * mult, rightBack * mult);
+    private void setPowers(double mult, double frontLeft, double backLeft, double frontRight, double backRight) {
+        setPowers(frontLeft * mult, backLeft * mult, frontRight * mult, backRight * mult);
     }
 }
