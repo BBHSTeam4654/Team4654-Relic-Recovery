@@ -1,5 +1,9 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+
+//this serves as a base make a blue and red forward and back if you wish
+//I seperated my P code to make it easy to do other stuff if you want
 public class PoPMode extends LinearBaseOpMode {
 
     final int MARGINOFERROR = 10;
@@ -12,8 +16,8 @@ public class PoPMode extends LinearBaseOpMode {
     static int rightDistance = 0;
 
     @Override
-    public void runOpMode() {
-
+    public void runOpMode() throws InterruptedException {
+    super.runOpMode();
 
         while (!this.isStopRequested()) {
             doP(true);
