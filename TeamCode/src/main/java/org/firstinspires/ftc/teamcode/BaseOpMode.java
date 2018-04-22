@@ -10,7 +10,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 
 public class BaseOpMode extends OpMode {
     
-    protected Servo claw, colorArm,clawPitch,glyph;
+    protected Servo claw, colorArm,clawPitch,glyph, hugLeft, hugRight;
     protected ColorSensor color;
     protected DcMotor backLeftDrive, backRightDrive, frontLeftDrive, frontRightDrive, hug;
 
@@ -28,6 +28,10 @@ public class BaseOpMode extends OpMode {
         
         frontRightDrive.setDirection(DcMotorSimple.Direction.REVERSE);
         backRightDrive.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        hugLeft = hardwareMap.servo.get("hugLeft");
+        hugRight = hardwareMap.servo.get("hugRight");
+
     }
     
     public void loop() {
