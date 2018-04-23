@@ -6,15 +6,16 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 //I seperated my P code to make it easy to do other stuff if you want
 public class PoPMode extends LinearBaseOpMode {
 
-    final int MARGINOFERROR = 10;
+    final int MARGINOFERROR = 42; //written in  encoder ticks
     final int P = 1; //I have no idea whether this is a good value
 
-    final float POWER = 1.0f;
+    final float POWER = .1f;
 
 
     static int leftDistance = 0;
     static int rightDistance = 0;
 
+    public static boolean forwards = true;
     @Override
     public void runOpMode() throws InterruptedException {
     super.runOpMode();
@@ -65,7 +66,7 @@ public class PoPMode extends LinearBaseOpMode {
                 setPowers(-POWER + P * (leftDistance - rightDistance), -POWER + P * (leftDistance - rightDistance),
                         -POWER - P * (leftDistance - rightDistance), -POWER - P * (leftDistance - rightDistance));
             } else {
-                setPowers(POWER, POWER, POWER, POWER);
+                setPowers(-POWER, -POWER, -POWER, -POWER);
             }
         }
 
