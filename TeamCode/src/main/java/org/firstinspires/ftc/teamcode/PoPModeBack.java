@@ -7,6 +7,8 @@ public class PoPModeBack extends PoPMode {
     @Override
     public void runOpMode() throws InterruptedException{
         super.forwards = false;
+        super.distance = -1680;
+
         super.runOpMode();
 
     }

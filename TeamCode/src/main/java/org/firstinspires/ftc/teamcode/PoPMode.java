@@ -7,15 +7,19 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 public class PoPMode extends LinearBaseOpMode {
 
     final int MARGINOFERROR = 42; //written in  encoder ticks
-    final int P = 1; //I have no idea whether this is a good value
-
-    final float POWER = .1f;
+    final float P = .1f; //I have no idea whether this is a good value
+    final int DISTANCEMARGIN = 42; //also encoder ticks not necessarily same is MOE
+    final float POWER = 1.0f;
 
 
     static int leftDistance = 0;
     static int rightDistance = 0;
 
     public static boolean forwards = true;
+
+    public static int distance = 0; //rotations * 420 * 2 * pi * wheel radius
+    //wheel radius is 2in or 50.8mm
+    //you could also integrate this one's doP into another opMode
     @Override
     public void runOpMode() throws InterruptedException {
     super.runOpMode();
@@ -51,6 +55,8 @@ public class PoPMode extends LinearBaseOpMode {
             } else {
                 setPowers(POWER, POWER, POWER, POWER);
             }
+
+
         } else {
 
             leftDistance += leftBack.getCurrentPosition() - leftOld;
@@ -70,6 +76,11 @@ public class PoPMode extends LinearBaseOpMode {
             }
         }
 
+
+        if(Math.abs((leftDistance+rightDistance)/2 - distance) < DISTANCEMARGIN ){
+            //do some other stuff
+            //like stopping if we get close
+            }
 
     }
 
